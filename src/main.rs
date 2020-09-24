@@ -29,14 +29,26 @@ fn main() {
                 continue;
             }
         };
-        let audio = file.with_extension("mp3");
-        if audio.exists() && !confirm(&format!("File {:?} already exists. Overwrite?", audio)) {
-            continue;
-        }
-        let mut audio = match fs::File::create(&audio) {
-            Ok(val) => val,
-            Err(err) => {
-                println!("Unable to create file {:?}, {}", audio, err);
+        let audio = (|| -> Option<Box<dyn Write>> {
+            if cfg.stdout {
+                return Some(Box::from(std::io::stdout()));
+            }
+            let audio = file.with_extension("mp3");
+            if audio.exists() && !confirm(&format!("File {:?} already exists. Overwrite?", audio)) {
+                return None;
+            }
+            let audio = match fs::File::create(&audio) {
+                Ok(val) => val,
+                Err(err) => {
+                    println!("Unable to create file {:?}, {}", audio, err);
+                    return None;
+                }
+            };
+            Some(Box::from(audio))
+        })();
+        let mut audio = match audio {
+            Some(val) => val,
+            None => {
                 continue;
             }
         };
